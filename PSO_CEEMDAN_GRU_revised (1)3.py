@@ -1,27 +1,6 @@
 """
 PSO-CEEMDAN-GRU  —  Revised Experimental Code
 ================================================
-Addresses all 16 reviewer comments from the second review round.
-
-Reviewer compliance map
------------------------
-Q1  CEEMDAN applied to TRAINING SET ONLY (no look-ahead / decomposition leakage)
-Q2  Batch size EXCLUDED from PSO search space (3-dim: units, dropout, lr only)
-Q3  Dropout = single consistent value used everywhere (from PSO best params)
-Q4  R² uses standard MEAN-CENTRED denominator throughout
-Q5  Ablation study: (a) GRU-PSO, (b) CEEMDAN-GRU fixed, (c) PSO-CEEMDAN-GRU
-Q6  PSO run 3× per IMF; per-IMF optimal hyperparams reported in CSV
-Q7  PSO fitness = MSE consistently (not RMSE)
-Q8  Cross-comparison table footnotes added (dataset/location/scale)
-Q9  Multi-step forecasting: 1h / 6h / 12h / 24h ahead evaluated
-Q10 Final feature list explicit; VIF computed; collinear features removed
-Q11 NASA POWER spatial limitation explicitly printed as warning
-Q12 GRU-cap (146 units, fixed hyperparams) added as capacity-controlled baseline
-Q13 5-seed training; Mean ± Std reported for all models
-Q14 Full test-set visualisation + per-week MAE bar chart + 200-point detail
-Q15 Generalisation claims restricted (single-site noted in output)
-Q16 Three new citations noted in comments (CNN-LSTM, K-means RBF, BiGRU-CNN)
-"""
 
 import os, math, random, time, warnings, gc, glob
 import numpy as np
@@ -58,7 +37,7 @@ IMF_BATCH        = 32
 PSO_TUNE_EPOCHS  = 10       # epochs inside PSO fitness (keep small)
 PSO_PARTICLES    = 5        # increase to 15-30 for production run
 PSO_ITERS        = 6        # increase to 10-20 for production run
-PSO_RUNS         = 3        # independent PSO restarts per IMF  (Q6)
+PSO_RUNS         = 3        # independent PSO restarts per IMF  
 
 VERBOSE          = 0
 OUT_DIR          = "outputs"
@@ -174,14 +153,14 @@ print(f"  Dataset shape : {data.shape}")
 print(f"  Date range    : {data['timestamp'].min()} -> {data['timestamp'].max()}")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. FEATURE SELECTION WITH SPEARMAN CORRELATION AND VIF  (Q10)
+# 2. FEATURE SELECTION WITH SPEARMAN CORRELATION AND VIF  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
 print("2. CORRELATION + VIF FEATURE SELECTION (Q10)")
 print("=" * 70)
 
 # Q11: NASA POWER spatial limitation warning
-print("\n  [Q11 WARNING] Weather inputs sourced from NASA POWER reanalysis")
+print("\n  [WARNING] Weather inputs sourced from NASA POWER reanalysis")
 print("  (~0.5°×0.625° grid). Validate against local station data if available.")
 print("  Spatial mismatch may affect solar_irradiance and temperature accuracy.")
 
@@ -310,12 +289,6 @@ def build_baseline(model_type, input_shape):
     return model
 
 def build_gru_cap(input_shape):
-    """
-    Q12: GRU-cap (capacity-controlled baseline, 146 units, FIXED hyperparams).
-    Matches PSO-tuned unit count but uses dropout=0.3 and lr=0.001 (not tuned).
-    NOT PSO-optimised. Purpose: confirm improvement comes from PSO tuning,
-    not simply from having more units than the 128-unit GRU baseline.
-    """
     model = keras.Sequential([
         keras.layers.GRU(146, input_shape=input_shape),
         keras.layers.Dropout(0.3),
@@ -326,7 +299,7 @@ def build_gru_cap(input_shape):
     return model
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. MULTI-SEED TRAINING HELPER  (Q13)
+# 5. MULTI-SEED TRAINING HELPER  
 # ─────────────────────────────────────────────────────────────────────────────
 def train_multiple_seeds(build_fn, x_tr, y_tr, x_te, y_true,
                           n_feat, scaler, epochs, batch, seeds):
@@ -367,7 +340,7 @@ def train_multiple_seeds(build_fn, x_tr, y_tr, x_te, y_true,
     return summary
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. TRAIN BASELINE MODELS  (Q13: multi-seed)
+# 6. TRAIN BASELINE MODELS  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
 print("4. TRAINING BASELINE MODELS (5 seeds each)")
@@ -387,7 +360,7 @@ for name in BASELINE_NAMES:
           f"RMSE={res['RMSE_mean']:.4f}±{res['RMSE_std']:.4f}")
 
 # Q12: GRU-cap baseline (146 units, fixed hyperparams, no PSO)
-print(f"\n  ── GRU-cap (146 units, fixed hyperparams, no PSO — Q12) ──")
+print(f"\n  ── GRU-cap (146 units, fixed hyperparams, no PSO) ──")
 fn_146 = lambda: build_gru_cap(ishape)
 res_146 = train_multiple_seeds(fn_146, x_train, y_train, x_test, y_true_test,
                                 n_feat, scaler_mv,
@@ -397,12 +370,12 @@ print(f"  SUMMARY  R²={res_146['R2_mean']:.4f}±{res_146['R2_std']:.4f}  "
       f"RMSE={res_146['RMSE_mean']:.4f}±{res_146['RMSE_std']:.4f}")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. CEEMDAN DECOMPOSITION — TRAINING SET ONLY  (Q1: no leakage)
+# 7. CEEMDAN DECOMPOSITION — TRAINING SET ONLY  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
-print("5. CEEMDAN DECOMPOSITION — TRAINING SET ONLY (Q1)")
+print("5. CEEMDAN DECOMPOSITION — TRAINING SET ONLY")
 print("=" * 70)
-print("  [Q1] CEEMDAN is applied exclusively to the training portion")
+print("  CEEMDAN is applied exclusively to the training portion")
 print("       of the load signal. Test-set IMF components are derived")
 print("       by predicting from models trained on training-set IMFs only.")
 
@@ -424,7 +397,7 @@ print(f"  Extracted {n_imfs} IMFs from {train_len} training samples")
 recon_err = np.max(np.abs(np.sum(imfs_train, axis=0) - load_train_sc))
 print(f"  Max reconstruction error: {recon_err:.2e}  (should be < 1e-6)")
 
-# ── CEEMDAN decomposition plot — publication quality ─────────────────────────
+# ── CEEMDAN decomposition plot 
 _hi  = ["#d62728", "#e5572b", "#f08030"]
 _mid = ["#1f77b4", "#4898d0", "#6eb4e6"]
 _lo  = ["#2ca02c", "#1a7a1a"]
@@ -464,10 +437,10 @@ plt.setp([ax.get_xticklabels() for ax in axes2[:-1]], visible=False)
 savefig("Fig2_CEEMDAN_IMFs")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. PSO HYPERPARAMETER OPTIMISATION — per-IMF  (Q2, Q6, Q7)
+# 8. PSO HYPERPARAMETER OPTIMISATION — per-IMF  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
-print("6. PSO OPTIMISATION — per-IMF  (Q2 / Q6 / Q7)")
+print("6. PSO OPTIMISATION — per-IMF ")
 print(f"   particles={PSO_PARTICLES}, iters={PSO_ITERS}, "
       f"tune_epochs={PSO_TUNE_EPOCHS}, runs={PSO_RUNS}")
 print("=" * 70)
@@ -552,7 +525,7 @@ def pso_fitness(params, X_tr, y_tr, X_val, y_val):
     m = build_gru_imf(units, dropout, lr, LOOKBACK)
     m.fit(X_tr, y_tr, epochs=PSO_TUNE_EPOCHS, batch_size=32, verbose=0)
     p = m.predict(X_val, verbose=0).flatten()
-    return mean_squared_error(y_val, p)   # MSE — Q7
+    return mean_squared_error(y_val, p)   # MSE 
 
 class PSO:
     def __init__(self, n_particles, n_iters, bounds, fitness_fn):
@@ -616,7 +589,7 @@ if not os.path.exists(checkpoint_file) and not latest_checkpoint:
 
         best_params_run, best_score_run = None, np.inf
         run_scores = []
-        for run_k in range(PSO_RUNS):        # Q6: 3 independent runs per IMF
+        for run_k in range(PSO_RUNS):        # 3 independent runs per IMF
             seed_k = run_k * 137
             random.seed(seed_k); np.random.seed(seed_k)
             print(f"    PSO run {run_k+1}/{PSO_RUNS} (seed={seed_k})", flush=True)
@@ -653,7 +626,7 @@ if not os.path.exists(checkpoint_file) and not latest_checkpoint:
                             pso_histories=np.array(pso_histories, dtype=object))
         print(f"  [INTERMEDIATE CHECKPOINT] Saved after IMF {imf_i+1} → {intermediate_checkpoint}")
 
-    # Q6 / Q3: per-IMF hyperparameter table (only if PSO was run)
+    #  per-IMF hyperparameter table (only if PSO was run)
     if not os.path.exists(checkpoint_file) and not latest_checkpoint:
         imf_param_df = pd.DataFrame(
             [(i+1, int(per_imf_params[i][0]),
@@ -714,7 +687,7 @@ else:
     print("  [SKIP] Fig3_PSO_convergence: PSO histories not available (resumed from checkpoint)")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 9. TRAIN PER-IMF GRU WITH OPTIMISED HYPERPARAMETERS  (Q1 leakage fix)
+# 9. TRAIN PER-IMF GRU WITH OPTIMISED HYPERPARAMETERS  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
 print("7. PER-IMF GRU FINAL TRAINING  (PSO-CEEMDAN-GRU)")
@@ -722,7 +695,7 @@ print("=" * 70)
 
 def train_per_imf_ensemble(imfs_tr, lookback, tr_len,
                             imf_params, epochs, batch, seed):
-    """Q1: trains on training-set IMFs only; reconstructs test-set forecast."""
+    """trains on training-set IMFs only; reconstructs test-set forecast."""
     set_seeds(seed)
     n_i = imfs_tr.shape[0]
     imf_test_preds = []
@@ -796,10 +769,10 @@ for k in pso_metrics_keys:
           f"{pso_final_metrics[k+'_std']:.4f}")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 10. ABLATION STUDY  (Q5)
+# 10. ABLATION STUDY  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
-print("8. ABLATION STUDY (Q5)")
+print("8. ABLATION STUDY ")
 print("=" * 70)
 print("  Testing three configurations to isolate contributions:")
 print("  (a) GRU-PSO       : PSO-tuned GRU on raw load — no decomposition")
@@ -861,7 +834,7 @@ print(f"  CEEMDAN-GRU: "
       f"{ceemdan_gru_metrics['RMSE_std']:.4f}")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 11. MULTI-STEP FORECASTING  (Q9): 1h / 6h / 12h / 24h
+# 11. MULTI-STEP FORECASTING  : 1h / 6h / 12h / 24h
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
 print("9. MULTI-STEP FORECASTING (Q9): horizons 1h / 6h / 12h / 24h")
@@ -930,7 +903,7 @@ print("\nTable 4 — Error evaluation (Mean ± Std, 5 seeds):")
 print(table_main.to_string(index=False))
 table_main.to_csv(f"{OUT_DIR}/Table4_main_results.csv", index=False)
 
-# Ablation table (Q5)
+# Ablation table 
 ablation_rows = [
     {"Configuration": "GRU (baseline, 128 units)",
      "PSO": "✗", "CEEMDAN": "✗",
@@ -954,7 +927,7 @@ print("\nAblation Study (Q5):")
 print(ablation_df.to_string(index=False))
 ablation_df.to_csv(f"{OUT_DIR}/Table_ablation.csv", index=False)
 
-# Multi-step table (Q9)
+# Multi-step table 
 ms_rows = [{"Horizon": f"{h}h",
              "R²_mean_%":  f"{r['R2_mean']*100:.2f}",
              "R²_std_%":   f"±{r['R2_std']*100:.2f}",
@@ -967,7 +940,7 @@ print(ms_df.to_string(index=False))
 ms_df.to_csv(f"{OUT_DIR}/Table_multistep.csv", index=False)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 13. PUBLICATION-QUALITY FIGURES  (Q14)
+# 13. PUBLICATION-QUALITY FIGURES  
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 70)
 print("11. GENERATING FIGURES")
@@ -1002,7 +975,7 @@ ax.set_ylabel("Load (kW)", fontweight="bold")
 ax.legend()
 savefig("Fig5_PSO_CEEMDAN_GRU_full_testset")
 
-# Fig 6 — Last 200 test points detail panel  (Q14)
+# Fig 6 — Last 200 test points detail panel  
 n_zoom = min(200, n_te)
 fig, ax = plt.subplots(figsize=(14, 4.5))
 ax.plot(y_true_aligned[-n_zoom:], color=COLORS["actual"], lw=1.4,
@@ -1027,7 +1000,7 @@ ax.set_xlabel("Test Week", fontweight="bold")
 ax.set_ylabel("Weekly MAE (kW)", fontweight="bold")
 savefig("Fig7_per_week_MAE")
 
-# Fig 8 — Scatter plots, all models  (Q14)
+# Fig 8 — Scatter plots, all models  
 all_model_names = BASELINE_NAMES + ["GRU-cap", "PSO-CEEMDAN-GRU"]
 ncols_sc = 3
 nrows_sc = math.ceil(len(all_model_names) / ncols_sc)
@@ -1056,7 +1029,7 @@ for j in range(len(all_model_names), len(axes_fl)):
     axes_fl[j].set_visible(False)
 savefig("Fig8_scatter_all_models")
 
-# Fig 9 — Ablation bar chart  (Q5)
+# Fig 9 — Ablation bar chart  
 ab_labels = ["GRU\n(baseline)", "GRU-PSO\n(no decomp.)",
              "CEEMDAN-GRU\n(fixed hyper)", "PSO-CEEMDAN-GRU\n(full)"]
 ab_colors = [COLORS["grey"], COLORS["gru_pso"],
@@ -1088,7 +1061,7 @@ for b, v in zip(bars2, ab_rmses):
              ha="center", fontsize=9, fontweight="bold")
 savefig("Fig9_ablation_study")
 
-# Fig 10 — Multi-step horizon  (Q9)
+# Fig 10 — Multi-step horizon  
 horizons  = list(multistep_results.keys())
 ms_r2     = [multistep_results[h]["R2_mean"] * 100 for h in horizons]
 ms_rmse   = [multistep_results[h]["RMSE_mean"]     for h in horizons]
@@ -1154,24 +1127,6 @@ print("  be validated before operational deployment.")
 print("\n" + "=" * 70)
 print("REVIEWER COMPLIANCE CHECKLIST")
 print("=" * 70)
-checks = [
-    ("Q1",  "CEEMDAN applied to training set ONLY — no look-ahead leakage"),
-    ("Q2",  "Batch size excluded from PSO — 3-dim search: units/dropout/lr"),
-    ("Q3",  "Dropout = consistent single value per IMF from CSV output"),
-    ("Q4",  "R² uses mean-centred denominator (standard formula)"),
-    ("Q5",  "Ablation: GRU-PSO / CEEMDAN-GRU / PSO-CEEMDAN-GRU"),
-    ("Q6",  "PSO run 3× per IMF; per-IMF params in per_imf_hyperparams.csv"),
-    ("Q7",  "PSO fitness = MSE consistently throughout"),
-    ("Q8",  "Cross-comparison table footnotes in manuscript (dataset/scale)"),
-    ("Q9",  "Multi-step (1h/6h/12h/24h) evaluated; Fig 10 + Table produced"),
-    ("Q10", "Final feature set explicit; VIF computed; collinear removed"),
-    ("Q11", "NASA POWER spatial limitation noted in output + manuscript"),
-    ("Q12", "GRU-cap (146 units, fixed params) added — capacity-controlled baseline"),
-    ("Q13", "5-seed training; Mean ± Std for all models"),
-    ("Q14", "Full test-set Fig5; per-week MAE Fig7; 200-point detail Fig6"),
-    ("Q15", "Single-site limitation noted; generalisation claims restricted"),
-    ("Q16", "3 new citations [13][14][16] added in manuscript introduction"),
-]
 for code, desc in checks:
     print(f"  [{code:3s}] ✓  {desc}")
 
