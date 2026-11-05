@@ -69,6 +69,8 @@ Lagged demand and time-dependent predictors
 The modelling workflow incorporates historical electricity demand, meteorological variables, lagged load observations, and additional engineered predictors.
 
 Data availability: Dataset access and any applicable restrictions should be documented in the data/ directory. Raw data are not redistributed unless permission and licensing conditions allow it.
+<img width="492" height="661" alt="image" src="https://github.com/user-attachments/assets/bbf21b6c-faf5-4fb0-b754-b5efa50f108c" />
+
 
 4. Forecasting Models
 
@@ -145,6 +147,8 @@ Measures average absolute prediction errors
 MAPE
 
 Expresses average absolute percentage prediction errors
+
+<img width="841" height="662" alt="image" src="https://github.com/user-attachments/assets/e0e4f044-61c2-4678-96ca-7e2bdacb53ff" />
 
 These metrics provide complementary assessments of forecasting accuracy and model generalisation.
 
