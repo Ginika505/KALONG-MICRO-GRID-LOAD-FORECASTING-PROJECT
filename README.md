@@ -6,7 +6,7 @@ Methodology
 
 1. Project Overview
 
-This repository presents MATLAB implementations of deep learning and hybrid optimisation-based models for electricity load forecasting in the Kalong standalone solar microgrid.
+This repository presents VS Code implementations of deep learning and hybrid optimisation-based models for electricity load forecasting in the Kalong standalone solar microgrid.
 
 The research investigates the application of recurrent neural networks and decomposition-based hybrid learning techniques to improve short-term electricity demand forecasting. The developed models are intended to support demand estimation, energy management, and the reliable planning and operation of renewable energy-based mini-grids.
 
